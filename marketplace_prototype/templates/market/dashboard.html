@@ -1,0 +1,46 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fresh From Farms | Verified farm supply</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'market/style.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'dashboard' %}"><span class="brand-mark">F</span><span>Fresh  From Farms</span></a>
+    <nav><a class="active" href="#supply">Marketplace</a><a href="#how-it-works">How it works</a><a href="#network">Farmer network</a></nav>
+    <button class="outline-button" onclick="document.getElementById('inquiry').showModal()">Post a requirement <span>↗</span></button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy"><p class="eyebrow"><span class="pulse"></span> DIRECT FROM THE SOURCE</p><h1>Good food has<br><em>a paper trail.</em></h1><p class="hero-text">A transparent marketplace connecting verified local farmers with the people buying at scale.</p><a class="primary-button" href="#supply">Explore live supply <span>↓</span></a></div>
+      <div class="hero-aside"><div class="stamp">TRACE<br>EVERY<br>BATCH</div><div class="hero-note"><span>FIELD NOTE 004</span><strong>Source with confidence.</strong><p>Every listing carries its farmer, location, harvest date, and a traceable batch ID.</p></div></div>
+    </section>
+
+    <section class="metrics" id="network"><div><strong>{{ farmer_count }}</strong><span>verified farmers</span></div><div><strong>{{ supply_count }}</strong><span>live listings</span></div><div><strong>48h</strong><span>average response</span></div><div><strong>100%</strong><span>source visibility</span></div></section>
+
+    <section class="market-section" id="supply">
+      <div class="section-heading"><div><p class="eyebrow">THE EXCHANGE / 01</p><h2>Live supply</h2></div><p>Browse what's ready to move.<br>Ask directly, buy fairly.</p></div>
+      <form class="filters" method="get"><div class="search"><span>⌕</span><input name="q" value="{{ search }}" placeholder="Search produce, variety or farmer..."></div><div class="filter-tabs">{% for item in categories %}<button name="category" value="{{ item }}" class="{% if category == item %}selected{% endif %}">{{ item }}</button>{% endfor %}</div></form>
+      <div class="product-grid">{% for product in products %}<article class="product-card"><div class="product-image"><img src="{{ product.image_url }}" alt="{{ product.name }}"><span class="category-tag">{{ product.category }}</span><span class="verified-tag">✓ Verified origin</span></div><div class="product-body"><div class="product-title"><div><h3>{{ product.name }}</h3><p>{{ product.variety }}</p></div><span class="price">₦{{ product.price }}<small>/{{ product.unit }}</small></span></div><div class="farmer-line"><span class="avatar">{{ product.farmer.avatar }}</span><div><strong>{{ product.farmer.name }}</strong><span>{{ product.farmer.location }} · {{ product.farmer.farm_type }}</span></div></div><div class="product-data"><span><small>AVAILABLE</small><b>{{ product.quantity|floatformat:0 }} {{ product.unit }}</b></span><span><small>HARVESTED</small><b>{{ product.harvest_date|date:'d M Y' }}</b></span><span><small>BATCH ID</small><b class="mono">{{ product.trace_code }}</b></span></div><div class="card-footer"><span class="availability"><i></i>{{ product.availability }}</span><button type="button" class="text-button request-supply" data-product-id="{{ product.id }}" data-product-name="{{ product.name }}" data-product-quantity="{{ product.quantity }}">Request supply <span>↗</span></button></div></div></article>{% empty %}<div class="empty-state">No listings match this search yet.</div>{% endfor %}</div>
+    </section>
+
+    <section class="how" id="how-it-works"><p class="eyebrow">THE Fresh From Farms METHOD / 02</p><div class="how-grid"><h2>Shorter routes.<br><em>Stronger relationships.</em></h2><div class="steps"><div><span>01</span><strong>Verify the source</strong><p>We onboard farmers, cooperatives, and their practices before a single listing goes live.</p></div><div><span>02</span><strong>See the real supply</strong><p>Clear quantities, harvest dates, batch IDs, and pricing remove the guesswork.</p></div><div><span>03</span><strong>Build the right deal</strong><p>Send a direct request. Farmers respond with availability, logistics, and a fair quote.</p></div></div></div></section>
+  </main>
+
+  <footer><a class="brand" href="{% url 'dashboard' %}"><span class="brand-mark">F</span><span>fieldwork</span></a><span>Built for better food systems.</span><span class="mono">EST. 2026 / NIGERIA</span></footer>
+
+  <dialog id="inquiry"><button class="close" onclick="this.closest('dialog').close()">×</button><p class="eyebrow">BUYER DESK / DIRECT REQUEST</p><h2>What are you looking to source?</h2><p class="dialog-intro">Tell us what you need and the right farmer will get back to you.</p><form method="post" id="inquiry-form"><input type="hidden" name="product_id" id="product-id"><label>Product / batch<select id="product-select" required></select></label><label>Your name<input name="buyer_name" required placeholder="e.g. Asha from Green Table"></label><label>Work email<input type="email" name="buyer_email" required placeholder="you@company.com"></label><label>Quantity needed<input type="number" name="quantity" id="quantity" min="1" required placeholder="in kg"></label><label>Anything else? <textarea name="note" rows="3" placeholder="Delivery window, grade, recurring order..."></textarea></label><button class="primary-button" id="submit-inquiry" type="submit">Send inquiry <span>↗</span></button></form></dialog>
+  {% if messages %}<div class="toast">{% for message in messages %}{{ message }}{% endfor %}</div>{% endif %}
+  <script>
+    function openInquiry(id, name, quantity) { const dialog = document.getElementById('inquiry'); const form = document.getElementById('inquiry-form'); form.action = `/inquire/${id}/`; document.getElementById('product-id').value = id; const option = document.getElementById('product-select').options[0] || document.getElementById('product-select').appendChild(document.createElement('option')); option.textContent = `${name} · up to ${quantity} kg available`; dialog.showModal(); }
+    document.querySelectorAll('.request-supply').forEach((button) => button.addEventListener('click', () => openInquiry(button.dataset.productId, button.dataset.productName, button.dataset.productQuantity)));
+  </script>
+</body>
+</html>
