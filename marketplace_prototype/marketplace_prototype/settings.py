@@ -26,7 +26,8 @@ SECRET_KEY = 'django-insecure-!9)8)@e6r%9*jg77-@5v^3qbujo_yi3z3&bh@w^)c3i*57x&p(
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    '.onrender.com' 'marketplace-prototype-2.onrender.com',
+    '.onrender.com',
+    'marketplace-prototype-2.onrender.com',
     'localhost',
     '127.0.0.1',
     ]
