@@ -186,6 +186,7 @@
             <th>Product</th>
             <th>Qty</th>
             <th>Message</th>
+            <th>Status</th>
             <th>Date</th>
           </tr>
         </thead>
@@ -201,12 +202,38 @@
                 <span class="badge">{{ inquiry.product.trace_code }}</span>
               </td>
               <td>{{ inquiry.quantity }} kg</td>
-              <td>{% if inquiry.note %}{{ inquiry.note }}{% else %}No notes provided{% endif %}</td>
-              <td>{{ inquiry.created_at|date:"d M Y H:i" }}</td>
+              <td>
+                {% if inquiry.note %}{{ inquiry.note }}{% else %}No notes provided{% endif %}
+                {% if inquiry.response_message %}
+                  <div style="margin-top: 12px; padding: 10px 12px; background: #edf7ee; border-radius: 10px; border: 1px solid rgba(45,111,62,.15);">
+                    <strong>Reply sent:</strong><br>
+                    {{ inquiry.response_message }}
+                  </div>
+                {% endif %}
+              </td>
+              <td>
+                <form method="post" action="{% url 'update_inquiry_status' inquiry.id %}" style="display: grid; gap: 8px;">
+                  {% csrf_token %}
+                  <select name="status">
+                    {% for choice in inquiry.STATUS_CHOICES %}
+                      <option value="{{ choice.0 }}" {% if inquiry.status == choice.0 %}selected{% endif %}>{{ choice.1 }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn" type="submit">Update</button>
+                </form>
+              </td>
+              <td>
+                {{ inquiry.created_at|date:"d M Y H:i" }}
+                <form method="post" action="{% url 'respond_to_inquiry' inquiry.id %}" style="margin-top: 12px; display: grid; gap: 8px;">
+                  {% csrf_token %}
+                  <textarea name="message" rows="3" placeholder="Type your follow-up message..." required></textarea>
+                  <button class="btn primary" type="submit">Send response</button>
+                </form>
+              </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="5" class="empty">No inquiries have been made for your farm yet.</td>
+              <td colspan="6" class="empty">No inquiries have been made for your farm yet.</td>
             </tr>
           {% endfor %}
         </tbody>

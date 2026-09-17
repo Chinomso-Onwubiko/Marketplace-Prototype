@@ -1,4 +1,6 @@
+import json
 from datetime import date, timedelta
+from decimal import Decimal
 
 from django.conf import settings
 from django.contrib import messages
@@ -6,9 +8,21 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from .models import Farmer, Inquiry, Product
+
+
+def get_cart(request):
+    if 'cart' not in request.session:
+        request.session['cart'] = {}
+    return request.session['cart']
+
+
+def cart_count(request):
+    return sum(int(qty) for qty in get_cart(request).values())
 
 
 def seed_demo_data():
@@ -104,20 +118,145 @@ def dashboard(request):
         'farmer_count': Farmer.objects.count(),
         'supply_count': Product.objects.count(),
         'inquiry_count': Inquiry.objects.count(),
+        'cart_count': cart_count(request),
     }
     return render(request, 'market/dashboard.html', context)
 
 
-def inquire(request, product_id):
+@login_required(login_url='farmer_login')
+def farmer_dashboard(request):
+    if not hasattr(request.user, 'farmer'):
+        logout(request)
+        return redirect('farmer_login')
+
+    inquiries = Inquiry.objects.filter(product__farmer=request.user.farmer).select_related('product', 'product__farmer').order_by('-created_at')
+    context = {
+        'farmer': request.user.farmer,
+        'inquiries': inquiries,
+    }
+    return render(request, 'market/farmer_dashboard.html', context)
+
+
+def add_to_cart(request, product_id):
     product = get_object_or_404(Product, pk=product_id)
+    cart = get_cart(request)
+    quantity = int(request.POST.get('quantity', 1) or 1)
+    cart[str(product.id)] = int(cart.get(str(product.id), 0)) + max(1, quantity)
+    request.session.modified = True
+
+    if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
+        data = {'ok': True, 'cart_count': cart_count(request), 'product_name': product.name}
+        return JsonResponse(data)
+
+    messages.success(request, f'{product.name} added to cart.')
+    return redirect(request.META.get('HTTP_REFERER', 'dashboard'))
+
+
+def cart_view(request):
+    cart = get_cart(request)
+    items = []
+    total = Decimal('0.00')
+    for product_id, quantity in cart.items():
+        product = get_object_or_404(Product, pk=product_id)
+        line_total = Decimal(str(product.price)) * int(quantity)
+        total += line_total
+        items.append({
+            'product': product,
+            'quantity': int(quantity),
+            'line_total': line_total,
+        })
+    context = {
+        'items': items,
+        'total': total,
+        'cart_count': cart_count(request),
+        'cart_json': json.dumps([
+            {'product_id': int(product_id), 'quantity': int(quantity)}
+            for product_id, quantity in cart.items()
+        ]),
+    }
+    return render(request, 'market/cart.html', context)
+
+
+def update_cart(request, product_id):
+    cart = get_cart(request)
     if request.method == 'POST':
+        qty = int(request.POST.get('quantity', 0) or 0)
+        if qty <= 0:
+            cart.pop(str(product_id), None)
+        else:
+            cart[str(product_id)] = qty
+        request.session.modified = True
+    return redirect('cart')
+
+
+def remove_from_cart(request, product_id):
+    cart = get_cart(request)
+    cart.pop(str(product_id), None)
+    request.session.modified = True
+    return redirect('cart')
+
+
+def _parse_cart_items(request, product_id=None):
+    cart_data = request.POST.get('cart')
+    if cart_data:
+        try:
+            parsed = json.loads(cart_data)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            parsed = []
+
+        if isinstance(parsed, dict):
+            parsed = [parsed]
+        if isinstance(parsed, list):
+            return parsed
+
+    return [{
+        'product_id': request.POST.get('product_id') or product_id,
+        'quantity': request.POST.get('quantity', 1) or 1,
+    }]
+
+
+def inquire(request, product_id=None):
+    if request.method != 'POST':
+        return redirect('dashboard')
+
+    cart_items = _parse_cart_items(request, product_id)
+    if not cart_items:
+        messages.error(request, 'Please add at least one product to your cart before confirming the order.')
+        return redirect('dashboard')
+
+    buyer_name = request.POST.get('buyer_name', '').strip()
+    buyer_email = request.POST.get('buyer_email', '').strip()
+    note = request.POST.get('note', '').strip()
+
+    if not buyer_name or not buyer_email:
+        messages.error(request, 'Please provide your name and email before confirming the order.')
+        return redirect('dashboard')
+
+    created_inquiries = []
+    order_total = Decimal('0.00')
+
+    for item in cart_items:
+        if not isinstance(item, dict):
+            continue
+        product_id_value = item.get('product_id')
+        quantity_value = item.get('quantity', 1)
+        if product_id_value is None:
+            continue
+
+        product = get_object_or_404(Product, pk=product_id_value)
+        quantity = max(1, int(quantity_value or 1))
+        line_total = Decimal(str(product.price)) * quantity
+        order_total += line_total
+
         inquiry = Inquiry.objects.create(
             product=product,
-            buyer_name=request.POST.get('buyer_name', '').strip(),
-            buyer_email=request.POST.get('buyer_email', '').strip(),
-            quantity=int(request.POST.get('quantity', 0) or 0),
-            note=request.POST.get('note', '').strip(),
+            buyer_name=buyer_name,
+            buyer_email=buyer_email,
+            quantity=quantity,
+            note=note,
+            total_amount=line_total,
         )
+        created_inquiries.append(inquiry)
 
         if product.farmer.email:
             send_mail(
@@ -128,6 +267,7 @@ def inquire(request, product_id):
                     f'Product: {product.name}\n'
                     f'Batch code: {product.trace_code}\n'
                     f'Quantity requested: {inquiry.quantity} {product.unit}\n'
+                    f'Line total: ₦{line_total:.2f}\n'
                     f'Note: {inquiry.note or "No additional note"}\n'
                 ),
                 from_email=settings.DEFAULT_FROM_EMAIL,
@@ -135,7 +275,24 @@ def inquire(request, product_id):
                 fail_silently=False,
             )
 
-        messages.success(request, f'Inquiry sent to {product.farmer.name}. They will respond within one business day.')
+    buyer_message = (
+        'Hello there, your order request has been received, we would get back to you with a follow up message '
+        'within 24hours, thank you.'
+    )
+    send_mail(
+        subject='Order request received',
+        message=f'{buyer_message}\n\nOrder total: ₦{order_total:.2f}\nItems: {", ".join(f"{inq.product.name} x {inq.quantity}" for inq in created_inquiries)}',
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[buyer_email],
+        fail_silently=False,
+    )
+
+    if created_inquiries:
+        first_product = created_inquiries[0].product
+        messages.success(request, f'Order confirmed for {first_product.name}. A confirmation email has been sent to {buyer_email}.')
+
+    request.session['cart'] = {}
+    request.session.modified = True
     return redirect('dashboard')
 
 
@@ -163,6 +320,49 @@ def farmer_dashboard(request):
         'inquiries': inquiries,
     }
     return render(request, 'market/farmer_dashboard.html', context)
+
+
+@login_required(login_url='farmer_login')
+def respond_to_inquiry(request, inquiry_id):
+    inquiry = get_object_or_404(Inquiry, pk=inquiry_id, product__farmer=request.user.farmer)
+
+    if request.method == 'POST':
+        message = (request.POST.get('message', '') or '').strip()
+        if not message:
+            messages.error(request, 'Please enter a follow-up message before sending.')
+            return redirect('farmer_dashboard')
+
+        send_mail(
+            subject=f'Re: inquiry for {inquiry.product.name}',
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[inquiry.buyer_email],
+            fail_silently=False,
+        )
+
+        inquiry.response_message = message
+        inquiry.responded_at = timezone.now()
+        inquiry.status = 'replied'
+        inquiry.save(update_fields=['response_message', 'responded_at', 'status'])
+        messages.success(request, 'Your follow-up message has been sent to the buyer.')
+
+    return redirect('farmer_dashboard')
+
+
+@login_required(login_url='farmer_login')
+def update_inquiry_status(request, inquiry_id):
+    inquiry = get_object_or_404(Inquiry, pk=inquiry_id, product__farmer=request.user.farmer)
+
+    if request.method == 'POST':
+        new_status = request.POST.get('status', 'pending')
+        if new_status in dict(Inquiry.STATUS_CHOICES):
+            inquiry.status = new_status
+            inquiry.save(update_fields=['status'])
+            messages.success(request, f'Inquiry status updated to {inquiry.get_status_display()}.')
+        else:
+            messages.error(request, 'Invalid inquiry status selected.')
+
+    return redirect('farmer_dashboard')
 
 
 @login_required(login_url='farmer_login')

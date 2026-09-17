@@ -10,12 +10,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'market/style.css' %}">
+  <style>
+    .topbar-actions{display:flex;align-items:center;gap:16px}.cart-icon{position:relative;display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;border:1px solid #d8d9d4;background:#fff;color:var(--ink);font-size:20px}.cart-count{position:absolute;top:-6px;right:-8px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--orange);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center}.toast{position:fixed;right:24px;bottom:24px;background:var(--ink);color:#fff;padding:14px 18px;border-radius:10px;box-shadow:0 20px 40px rgba(23,53,45,.18);font-size:12px;font-weight:700;opacity:1;visibility:visible;transition:all .2s ease}.toast.hidden{opacity:0;visibility:hidden}.text-button.request-supply.added{background:var(--ink);color:#fff;transform:scale(1.04);transition:all .15s ease}.text-button.request-supply{transition:all .15s ease}
+  </style>
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="{% url 'dashboard' %}"><span class="brand-mark">F</span><span>Fresh  From Farms</span></a>
     <nav><a class="active" href="#supply">Marketplace</a><a href="#how-it-works">How it works</a><a href="#network">Farmer network</a><a href="{% url 'farmer_login' %}">Farmer portal</a></nav>
-    <button class="outline-button" onclick="document.getElementById('inquiry').showModal()">Post a requirement <span>↗</span></button>
+    <div class="topbar-actions">
+      <a href="{% url 'cart' %}" class="cart-icon" aria-label="Open cart">
+        🛒
+        <span class="cart-count">{{ cart_count }}</span>
+      </a>
+      <button class="outline-button" onclick="document.getElementById('inquiry').showModal()">Post a requirement <span>↗</span></button>
+    </div>
   </header>
 
   <main>
@@ -29,7 +38,13 @@
     <section class="market-section" id="supply">
       <div class="section-heading"><div><p class="eyebrow">THE EXCHANGE / 01</p><h2>Live supply</h2></div><p>Browse what's ready to move.<br>Ask directly, buy fairly.</p></div>
       <form class="filters" method="get"><div class="search"><span>⌕</span><input name="q" value="{{ search }}" placeholder="Search produce, variety or farmer..."></div><div class="filter-tabs">{% for item in categories %}<button name="category" value="{{ item }}" class="{% if category == item %}selected{% endif %}">{{ item }}</button>{% endfor %}</div></form>
-      <div class="product-grid">{% for product in products %}<article class="product-card"><div class="product-image"><img src="{{ product.image_url }}" alt="{{ product.name }}"><span class="category-tag">{{ product.category }}</span><span class="verified-tag">✓ Verified origin</span></div><div class="product-body"><div class="product-title"><div><h3>{{ product.name }}</h3><p>{{ product.variety }}</p></div><span class="price">₦{{ product.price }}<small>/{{ product.unit }}</small></span></div><div class="farmer-line"><span class="avatar">{{ product.farmer.avatar }}</span><div><strong>{{ product.farmer.name }}</strong><span>{{ product.farmer.location }} · {{ product.farmer.farm_type }}</span></div></div><div class="product-data"><span><small>AVAILABLE</small><b>{{ product.quantity|floatformat:0 }} {{ product.unit }}</b></span><span><small>HARVESTED</small><b>{{ product.harvest_date|date:'d M Y' }}</b></span><span><small>BATCH ID</small><b class="mono">{{ product.trace_code }}</b></span></div><div class="card-footer"><span class="availability"><i></i>{{ product.availability }}</span><button type="button" class="text-button request-supply" data-product-id="{{ product.id }}" data-product-name="{{ product.name }}" data-product-quantity="{{ product.quantity }}">Request supply <span>↗</span></button></div></div></article>{% empty %}<div class="empty-state">No listings match this search yet.</div>{% endfor %}</div>
+      <div class="cart-panel">
+        <div class="cart-label">Shopping cart</div>
+        <div id="cart-items" class="cart-items"><div class="cart-empty">No items selected yet.</div></div>
+        <div class="cart-total-row"><span>Total</span><strong id="cart-total">₦0.00</strong></div>
+        <button type="button" id="open-cart-checkout" class="primary-button" disabled>Confirm order <span>↗</span></button>
+      </div>
+      <div class="product-grid">{% for product in products %}<article class="product-card"><div class="product-image"><img src="{{ product.image_url }}" alt="{{ product.name }}"><span class="category-tag">{{ product.category }}</span><span class="verified-tag">✓ Verified origin</span></div><div class="product-body"><div class="product-title"><div><h3>{{ product.name }}</h3><p>{{ product.variety }}</p></div><span class="price">₦{{ product.price }}<small>/{{ product.unit }}</small></span></div><div class="farmer-line"><span class="avatar">{{ product.farmer.avatar }}</span><div><strong>{{ product.farmer.name }}</strong><span>{{ product.farmer.location }} · {{ product.farmer.farm_type }}</span></div></div><div class="product-data"><span><small>AVAILABLE</small><b>{{ product.quantity|floatformat:0 }} {{ product.unit }}</b></span><span><small>HARVESTED</small><b>{{ product.harvest_date|date:'d M Y' }}</b></span><span><small>BATCH ID</small><b class="mono">{{ product.trace_code }}</b></span></div><div class="card-footer"><span class="availability"><i></i>{{ product.availability }}</span><button type="button" class="text-button request-supply" data-product-id="{{ product.id }}" data-product-name="{{ product.name }}" data-product-price="{{ product.price }}" data-product-quantity="{{ product.quantity }}" data-add-url="{% url 'add_to_cart' product.id %}">Add to cart <span>↗</span></button></div></div></article>{% empty %}<div class="empty-state">No listings match this search yet.</div>{% endfor %}</div>
     </section>
 
     <section class="how" id="how-it-works"><p class="eyebrow">THE Fresh From Farms METHOD / 02</p><div class="how-grid"><h2>Shorter routes.<br><em>Stronger relationships.</em></h2><div class="steps"><div><span>01</span><strong>Verify the source</strong><p>We onboard farmers, cooperatives, and their practices before a single listing goes live.</p></div><div><span>02</span><strong>See the real supply</strong><p>Clear quantities, harvest dates, batch IDs, and pricing remove the guesswork.</p></div><div><span>03</span><strong>Build the right deal</strong><p>Send a direct request. Farmers respond with availability, logistics, and a fair quote.</p></div></div></div></section>
@@ -37,26 +52,160 @@
 
   <footer><a class="brand" href="{% url 'dashboard' %}"><span class="brand-mark">F</span><span>fieldwork</span></a><span>Built for better food systems.</span><span class="mono">EST. 2026 / NIGERIA</span></footer>
 
-  <dialog id="inquiry"><button class="close" onclick="this.closest('dialog').close()">×</button><p class="eyebrow">BUYER DESK / DIRECT REQUEST</p><h2>What are you looking to source?</h2><p class="dialog-intro">Tell us what you need and the right farmer will get back to you.</p><form method="post" id="inquiry-form">{% csrf_token %}<input type="hidden" name="product_id" id="product-id"><label>Product / batch<select id="product-select" name="product_id" required><option value="" disabled selected>Select a product</option></select></label><label>Your name<input name="buyer_name" required placeholder="e.g. Asha from Green Table"></label><label>Work email<input type="email" name="buyer_email" required placeholder="you@company.com"></label><label>Quantity needed<input type="number" name="quantity" id="quantity" min="1" required placeholder="in kg"></label><label>Anything else? <textarea name="note" rows="3" placeholder="Delivery window, grade, recurring order..."></textarea></label><button class="primary-button" id="submit-inquiry" type="submit">Send inquiry <span>↗</span></button></form></dialog>
+  <dialog id="inquiry"><button class="close" onclick="this.closest('dialog').close()">×</button><p class="eyebrow">BUYER DESK / DIRECT REQUEST</p><h2>Complete your order</h2><p class="dialog-intro">Confirm your cart details and send the order request to the relevant farmers.</p><form method="post" id="inquiry-form" action="{% url 'inquire_cart' %}">{% csrf_token %}<input type="hidden" name="cart" id="cart-input"><div id="checkout-items" class="checkout-items"></div><label>Your name<input name="buyer_name" required placeholder="e.g. Asha from Green Table"></label><label>Work email<input type="email" name="buyer_email" required placeholder="you@company.com"></label><label>Anything else? <textarea name="note" rows="3" placeholder="Delivery window, grade, recurring order..."></textarea></label><div class="checkout-total-row"><span>Order total</span><strong id="checkout-total">₦0.00</strong></div><button class="primary-button" id="submit-inquiry" type="submit">Confirm order <span>↗</span></button></form></dialog>
+  <div id="cart-toast" class="toast hidden">Added to cart</div>
   {% if messages %}<div class="toast">{% for message in messages %}{{ message }}{% endfor %}</div>{% endif %}
   <script>
-    function openInquiry(id, name, quantity) {
-      const dialog = document.getElementById('inquiry');
-      const form = document.getElementById('inquiry-form');
-      const select = document.getElementById('product-select');
-      form.action = `/inquire/${id}/`;
-      document.getElementById('product-id').value = id;
+    const cart = [];
+    const cartToast = document.getElementById('cart-toast');
 
-      select.innerHTML = '';
-      const option = document.createElement('option');
-      option.value = String(id);
-      option.textContent = `${name} · up to ${quantity} kg available`;
-      option.selected = true;
-      select.appendChild(option);
-
-      dialog.showModal();
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+      return '';
     }
-    document.querySelectorAll('.request-supply').forEach((button) => button.addEventListener('click', () => openInquiry(button.dataset.productId, button.dataset.productName, button.dataset.productQuantity)));
+
+    function showCartToast(message = 'Added to cart') {
+      cartToast.textContent = message;
+      cartToast.classList.remove('hidden');
+      clearTimeout(showCartToast.timeoutId);
+      showCartToast.timeoutId = setTimeout(() => cartToast.classList.add('hidden'), 1500);
+    }
+
+    function money(value) {
+      return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 2 }).format(value);
+    }
+
+    function getCartTotal() {
+      return cart.reduce((total, item) => total + (Number(item.price) * Number(item.quantity)), 0);
+    }
+
+    function renderCart() {
+      const cartItems = document.getElementById('cart-items');
+      const cartTotal = document.getElementById('cart-total');
+      const checkoutItems = document.getElementById('checkout-items');
+      const checkoutTotal = document.getElementById('checkout-total');
+      const checkoutButton = document.getElementById('open-cart-checkout');
+      const countBadge = document.querySelector('.cart-count');
+
+      if (!cart.length) {
+        cartItems.innerHTML = '<div class="cart-empty">No items selected yet.</div>';
+        checkoutItems.innerHTML = '<div class="cart-empty">No items selected yet.</div>';
+        cartTotal.textContent = money(0);
+        checkoutTotal.textContent = money(0);
+        checkoutButton.disabled = true;
+        document.getElementById('cart-input').value = JSON.stringify([]);
+        if (countBadge) countBadge.textContent = '0';
+        return;
+      }
+
+      cartItems.innerHTML = cart.map((item) => `
+        <div class="cart-item">
+          <div>
+            <strong>${item.name}</strong>
+            <small>₦${item.price} each</small>
+          </div>
+          <div class="cart-item-actions">
+            <button type="button" class="mini-button" data-action="decrease" data-product-id="${item.productId}">−</button>
+            <span>${item.quantity}</span>
+            <button type="button" class="mini-button" data-action="increase" data-product-id="${item.productId}">+</button>
+            <button type="button" class="mini-button danger" data-action="remove" data-product-id="${item.productId}">×</button>
+          </div>
+        </div>
+      `).join('');
+
+      checkoutItems.innerHTML = cart.map((item) => `
+        <div class="checkout-item">
+          <span>${item.name}</span>
+          <span>${item.quantity} × ${money(item.price)}</span>
+        </div>
+      `).join('');
+
+      const total = getCartTotal();
+      cartTotal.textContent = money(total);
+      checkoutTotal.textContent = money(total);
+      checkoutButton.disabled = false;
+      document.getElementById('cart-input').value = JSON.stringify(cart.map((item) => ({ product_id: Number(item.productId), quantity: Number(item.quantity) })));
+      if (countBadge) countBadge.textContent = String(cart.reduce((sum, item) => sum + item.quantity, 0));
+    }
+
+    function addToCart(productId, name, price, url) {
+      const existing = cart.find((item) => item.productId === Number(productId));
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        cart.push({ productId: Number(productId), name, price: Number(price), quantity: 1 });
+      }
+      renderCart();
+
+      const addButton = document.querySelector(`[data-product-id="${productId}"]`);
+      if (addButton) {
+        addButton.classList.add('added');
+        addButton.textContent = 'Added to cart';
+        setTimeout(() => {
+          addButton.classList.remove('added');
+          addButton.innerHTML = 'Add to cart <span>↗</span>';
+        }, 1500);
+      }
+
+      if (url) {
+        fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: 'quantity=1',
+          credentials: 'same-origin'
+        })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data && data.cart_count !== undefined) {
+            const badge = document.querySelector('.cart-count');
+            if (badge) badge.textContent = data.cart_count;
+          }
+        })
+        .catch(() => {});
+      }
+
+      showCartToast('Added to cart');
+    }
+
+    function updateCartItem(productId, operation) {
+      const existing = cart.find((item) => item.productId === Number(productId));
+      if (!existing) return;
+      if (operation === 'increase') existing.quantity += 1;
+      if (operation === 'decrease') existing.quantity = Math.max(1, existing.quantity - 1);
+      if (operation === 'remove') {
+        const index = cart.findIndex((item) => item.productId === Number(productId));
+        if (index >= 0) cart.splice(index, 1);
+      }
+      renderCart();
+    }
+
+    document.addEventListener('click', (event) => {
+      const addButton = event.target.closest('.request-supply');
+      if (addButton) {
+        event.preventDefault();
+        addToCart(addButton.dataset.productId, addButton.dataset.productName, addButton.dataset.productPrice, addButton.dataset.addUrl);
+      }
+
+      const cartButton = event.target.closest('button[data-action]');
+      if (cartButton) {
+        const { action, productId } = cartButton.dataset;
+        updateCartItem(productId, action);
+      }
+    });
+
+    document.getElementById('open-cart-checkout').addEventListener('click', () => {
+      const dialog = document.getElementById('inquiry');
+      if (!cart.length) return;
+      dialog.showModal();
+    });
+
+    renderCart();
   </script>
 </body>
 </html>

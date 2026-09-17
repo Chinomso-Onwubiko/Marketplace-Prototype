@@ -37,9 +37,19 @@ class Product(models.Model):
 
 
 class Inquiry(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('replied', 'Replied'),
+        ('closed', 'Closed'),
+    ]
+
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='inquiries')
     buyer_name = models.CharField(max_length=120)
     buyer_email = models.EmailField()
     quantity = models.PositiveIntegerField()
     note = models.TextField(blank=True)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    response_message = models.TextField(blank=True, null=True)
+    responded_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
