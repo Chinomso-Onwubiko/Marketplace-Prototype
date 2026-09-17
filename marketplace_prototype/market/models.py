@@ -1,11 +1,14 @@
+from django.contrib.auth.models import User
 from django.db import models
 
 
 class Farmer(models.Model):
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='farmer')
     name = models.CharField(max_length=120)
     location = models.CharField(max_length=120)
     farm_type = models.CharField(max_length=120)
     avatar = models.CharField(max_length=4, default='FM')
+    email = models.EmailField(blank=True, null=True)
     verified = models.BooleanField(default=True)
 
     def __str__(self):

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Farmer login | Fresh From Farms</title>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --panel: #fffdf9;
+      --card: #f2e9d8;
+      --text: #1d1d1f;
+      --muted: #5f5c5a;
+      --primary: #2d6f3e;
+      --primary-dark: #1f4e2f;
+      --border: rgba(29, 29, 31, 0.12);
+      --error: #a43c32;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #f3f0ea 0%, #f9f5ef 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+    }
+    .login-shell {
+      width: min(440px, calc(100% - 32px));
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 32px 28px;
+      box-shadow: 0 20px 45px rgba(20, 26, 18, 0.08);
+    }
+    .eyebrow {
+      margin: 0 0 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-size: 11px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 2.3rem);
+    }
+    p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    form {
+      display: grid;
+      gap: 16px;
+    }
+    label {
+      display: grid;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 15px;
+      background: #fff;
+    }
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 18px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.18s ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    .muted-link {
+      display: inline-block;
+      margin-top: 14px;
+      color: var(--primary-dark);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .messages {
+      margin: 0 0 18px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: rgba(164, 60, 50, 0.08);
+      border: 1px solid rgba(164, 60, 50, 0.2);
+      color: var(--error);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-shell">
+    <p class="eyebrow">Farmer portal</p>
+    <h1>Welcome back</h1>
+    <p>Sign in to view supply inquiries made to your farm.</p>
+
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}{{ message }}{% endfor %}
+      </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <label>
+        Username
+        <input type="text" name="username" placeholder="amina_bello_farms" required>
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" placeholder="Enter your password" required>
+      </label>
+      <button type="submit">Login to dashboard</button>
+    </form>
+    <a class="muted-link" href="{% url 'dashboard' %}">Back to marketplace</a>
+  </div>
+</body>
+</html>
