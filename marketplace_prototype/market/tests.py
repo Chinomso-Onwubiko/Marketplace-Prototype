@@ -115,3 +115,25 @@ class ProductImageUrlTests(TestCase):
         dashboard = self.client.get('/farmer/dashboard/')
         self.assertEqual(dashboard.status_code, 200)
         self.assertContains(dashboard, 'Jane Buyer')
+
+    def test_inquire_uses_session_cart_when_payload_is_missing(self):
+        seed_demo_data()
+        product = Product.objects.first()
+
+        response = self.client.post(f'/cart/add/{product.pk}/', {'quantity': 3})
+        self.assertEqual(response.status_code, 302)
+
+        checkout = self.client.post(
+            '/inquire/',
+            {
+                'buyer_name': 'Session Buyer',
+                'buyer_email': 'session@example.com',
+                'note': 'Use the session cart',
+                'cart': '[]',
+            },
+        )
+
+        self.assertEqual(checkout.status_code, 302)
+        inquiry = Inquiry.objects.filter(product=product, buyer_email='session@example.com').first()
+        self.assertIsNotNone(inquiry)
+        self.assertEqual(inquiry.quantity, 3)

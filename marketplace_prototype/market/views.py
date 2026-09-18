@@ -198,6 +198,8 @@ def remove_from_cart(request, product_id):
 
 def _parse_cart_items(request, product_id=None):
     cart_data = request.POST.get('cart')
+    session_cart = get_cart(request)
+
     if cart_data:
         try:
             parsed = json.loads(cart_data)
@@ -207,7 +209,19 @@ def _parse_cart_items(request, product_id=None):
         if isinstance(parsed, dict):
             parsed = [parsed]
         if isinstance(parsed, list):
-            return parsed
+            if parsed:
+                return parsed
+            if session_cart:
+                return [{
+                    'product_id': int(product_id_key),
+                    'quantity': int(quantity),
+                } for product_id_key, quantity in session_cart.items()]
+
+    if session_cart:
+        return [{
+            'product_id': int(product_id_key),
+            'quantity': int(quantity),
+        } for product_id_key, quantity in session_cart.items()]
 
     return [{
         'product_id': request.POST.get('product_id') or product_id,
